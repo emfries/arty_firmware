@@ -1,0 +1,59 @@
+<?xml version="1.0"?>
+<Runs Version="1" Minor="0">
+	<Run Id="ARTY_firmware_axi_uartlite_0_0_synth_1" LaunchDir="/home/daq/Xilinx/ARTY_firmware/ARTY_firmware.runs/ARTY_firmware_axi_uartlite_0_0_synth_1" FlowId="Vivado_Synthesis" FromStepId="vivado" ToStepId="vivado"/>
+	<Run Id="ARTY_firmware_axi_quad_spi_0_0_synth_1" LaunchDir="/home/daq/Xilinx/ARTY_firmware/ARTY_firmware.runs/ARTY_firmware_axi_quad_spi_0_0_synth_1" FlowId="Vivado_Synthesis" FromStepId="vivado" ToStepId="vivado"/>
+	<Run Id="ARTY_firmware_axi_gpio_0_0_synth_1" LaunchDir="/home/daq/Xilinx/ARTY_firmware/ARTY_firmware.runs/ARTY_firmware_axi_gpio_0_0_synth_1" FlowId="Vivado_Synthesis" FromStepId="vivado" ToStepId="vivado"/>
+	<Run Id="ARTY_firmware_clk_wiz_0_0_synth_1" LaunchDir="/home/daq/Xilinx/ARTY_firmware/ARTY_firmware.runs/ARTY_firmware_clk_wiz_0_0_synth_1" FlowId="Vivado_Synthesis" FromStepId="vivado" ToStepId="vivado"/>
+	<Run Id="ARTY_firmware_axi_timer_0_0_synth_1" LaunchDir="/home/daq/Xilinx/ARTY_firmware/ARTY_firmware.runs/ARTY_firmware_axi_timer_0_0_synth_1" FlowId="Vivado_Synthesis" FromStepId="vivado" ToStepId="vivado"/>
+	<Run Id="ARTY_firmware_axi_smc_0_synth_1" LaunchDir="/home/daq/Xilinx/ARTY_firmware/ARTY_firmware.runs/ARTY_firmware_axi_smc_0_synth_1" FlowId="Vivado_Synthesis" FromStepId="vivado" ToStepId="vivado"/>
+	<Run Id="ARTY_firmware_lmb_bram_0_synth_1" LaunchDir="/home/daq/Xilinx/ARTY_firmware/ARTY_firmware.runs/ARTY_firmware_lmb_bram_0_synth_1" FlowId="Vivado_Synthesis" FromStepId="vivado" ToStepId="vivado"/>
+	<Run Id="ARTY_firmware_ilmb_bram_if_cntlr_0_synth_1" LaunchDir="/home/daq/Xilinx/ARTY_firmware/ARTY_firmware.runs/ARTY_firmware_ilmb_bram_if_cntlr_0_synth_1" FlowId="Vivado_Synthesis" FromStepId="vivado" ToStepId="vivado"/>
+	<Run Id="ARTY_firmware_dlmb_bram_if_cntlr_0_synth_1" LaunchDir="/home/daq/Xilinx/ARTY_firmware/ARTY_firmware.runs/ARTY_firmware_dlmb_bram_if_cntlr_0_synth_1" FlowId="Vivado_Synthesis" FromStepId="vivado" ToStepId="vivado"/>
+	<Run Id="ARTY_firmware_ilmb_v10_0_synth_1" LaunchDir="/home/daq/Xilinx/ARTY_firmware/ARTY_firmware.runs/ARTY_firmware_ilmb_v10_0_synth_1" FlowId="Vivado_Synthesis" FromStepId="vivado" ToStepId="vivado"/>
+	<Run Id="ARTY_firmware_dlmb_v10_0_synth_1" LaunchDir="/home/daq/Xilinx/ARTY_firmware/ARTY_firmware.runs/ARTY_firmware_dlmb_v10_0_synth_1" FlowId="Vivado_Synthesis" FromStepId="vivado" ToStepId="vivado" IsOrderedIPRun="true">
+		<Parent Id="ARTY_firmware_ilmb_v10_0_synth_1"/>
+	</Run>
+	<Run Id="ARTY_firmware_xbar_0_synth_1" LaunchDir="/home/daq/Xilinx/ARTY_firmware/ARTY_firmware.runs/ARTY_firmware_xbar_0_synth_1" FlowId="Vivado_Synthesis" FromStepId="vivado" ToStepId="vivado"/>
+	<Run Id="ARTY_firmware_mig_7series_0_0_synth_1" LaunchDir="/home/daq/Xilinx/ARTY_firmware/ARTY_firmware.runs/ARTY_firmware_mig_7series_0_0_synth_1" FlowId="Vivado_Synthesis" FromStepId="vivado" ToStepId="vivado"/>
+	<Run Id="ARTY_firmware_microblaze_0_0_synth_1" LaunchDir="/home/daq/Xilinx/ARTY_firmware/ARTY_firmware.runs/ARTY_firmware_microblaze_0_0_synth_1" FlowId="Vivado_Synthesis" FromStepId="vivado" ToStepId="vivado"/>
+	<Run Id="ARTY_firmware_mdm_1_0_synth_1" LaunchDir="/home/daq/Xilinx/ARTY_firmware/ARTY_firmware.runs/ARTY_firmware_mdm_1_0_synth_1" FlowId="Vivado_Synthesis" FromStepId="vivado" ToStepId="vivado"/>
+	<Run Id="ARTY_firmware_rst_mig_7series_0_83M_0_synth_1" LaunchDir="/home/daq/Xilinx/ARTY_firmware/ARTY_firmware.runs/ARTY_firmware_rst_mig_7series_0_83M_0_synth_1" FlowId="Vivado_Synthesis" FromStepId="vivado" ToStepId="vivado"/>
+	<Run Id="synth_1" LaunchDir="/home/daq/Xilinx/ARTY_firmware/ARTY_firmware.runs/synth_1" FlowId="Vivado_Synthesis" FromStepId="vivado" ToStepId="vivado">
+		<Parent Id="ARTY_firmware_axi_uartlite_0_0_synth_1"/>
+		<Parent Id="ARTY_firmware_axi_quad_spi_0_0_synth_1"/>
+		<Parent Id="ARTY_firmware_axi_gpio_0_0_synth_1"/>
+		<Parent Id="ARTY_firmware_clk_wiz_0_0_synth_1"/>
+		<Parent Id="ARTY_firmware_axi_timer_0_0_synth_1"/>
+		<Parent Id="ARTY_firmware_axi_smc_0_synth_1"/>
+		<Parent Id="ARTY_firmware_lmb_bram_0_synth_1"/>
+		<Parent Id="ARTY_firmware_ilmb_bram_if_cntlr_0_synth_1"/>
+		<Parent Id="ARTY_firmware_dlmb_bram_if_cntlr_0_synth_1"/>
+		<Parent Id="ARTY_firmware_ilmb_v10_0_synth_1"/>
+		<Parent Id="ARTY_firmware_dlmb_v10_0_synth_1"/>
+		<Parent Id="ARTY_firmware_xbar_0_synth_1"/>
+		<Parent Id="ARTY_firmware_mig_7series_0_0_synth_1"/>
+		<Parent Id="ARTY_firmware_microblaze_0_0_synth_1"/>
+		<Parent Id="ARTY_firmware_mdm_1_0_synth_1"/>
+		<Parent Id="ARTY_firmware_rst_mig_7series_0_83M_0_synth_1"/>
+	</Run>
+	<Run Id="impl_1" LaunchDir="/home/daq/Xilinx/ARTY_firmware/ARTY_firmware.runs/impl_1" FlowId="Vivado_Implementation" FromStepId="init_design" ToStepId="route_design">
+		<Parent Id="synth_1"/>
+		<Parent Id="ARTY_firmware_axi_uartlite_0_0_synth_1"/>
+		<Parent Id="ARTY_firmware_axi_quad_spi_0_0_synth_1"/>
+		<Parent Id="ARTY_firmware_axi_gpio_0_0_synth_1"/>
+		<Parent Id="ARTY_firmware_clk_wiz_0_0_synth_1"/>
+		<Parent Id="ARTY_firmware_axi_timer_0_0_synth_1"/>
+		<Parent Id="ARTY_firmware_axi_smc_0_synth_1"/>
+		<Parent Id="ARTY_firmware_lmb_bram_0_synth_1"/>
+		<Parent Id="ARTY_firmware_ilmb_bram_if_cntlr_0_synth_1"/>
+		<Parent Id="ARTY_firmware_dlmb_bram_if_cntlr_0_synth_1"/>
+		<Parent Id="ARTY_firmware_ilmb_v10_0_synth_1"/>
+		<Parent Id="ARTY_firmware_dlmb_v10_0_synth_1"/>
+		<Parent Id="ARTY_firmware_xbar_0_synth_1"/>
+		<Parent Id="ARTY_firmware_mig_7series_0_0_synth_1"/>
+		<Parent Id="ARTY_firmware_microblaze_0_0_synth_1"/>
+		<Parent Id="ARTY_firmware_mdm_1_0_synth_1"/>
+		<Parent Id="ARTY_firmware_rst_mig_7series_0_83M_0_synth_1"/>
+	</Run>
+</Runs>
+

@@ -1,0 +1,21 @@
+14:21:18 **** Auto Build of configuration Debug for project ARTY_firmware ****
+make all 
+Building file: ../src/helloworld.c
+Invoking: MicroBlaze gcc compiler
+mb-gcc -Wall -O0 -g3 -c -fmessage-length=0 -MT"src/helloworld.o" -I../../ARTY_firmware_bsp/microblaze_0/include -mlittle-endian -mcpu=v10.0 -mxl-soft-mul -Wl,--no-relax -ffunction-sections -fdata-sections -MMD -MP -MF"src/helloworld.d" -MT"src/helloworld.o" -o "src/helloworld.o" "../src/helloworld.c"
+Finished building: ../src/helloworld.c
+ 
+Building target: ARTY_firmware.elf
+Invoking: MicroBlaze gcc linker
+mb-gcc -Wl,-T -Wl,../src/lscript.ld -L../../ARTY_firmware_bsp/microblaze_0/lib -mlittle-endian -mcpu=v10.0 -mxl-soft-mul -Wl,--no-relax -Wl,--gc-sections -o "ARTY_firmware.elf"  ./src/helloworld.o ./src/platform.o   -Wl,--start-group,-lxil,-lgcc,-lc,--end-group
+Finished building target: ARTY_firmware.elf
+ 
+Invoking: MicroBlaze Print Size
+mb-size ARTY_firmware.elf  |tee "ARTY_firmware.elf.size"
+   text	   data	    bss	    dec	    hex	filename
+ 136584	   1492	   2332	 140408	  22478	ARTY_firmware.elf
+Finished building: ARTY_firmware.elf.size
+ 
+
+14:21:19 Build Finished (took 802ms)
+

@@ -1,0 +1,13 @@
+com.xilinx.sdk.linkgen.prefs.ARTY_firmware\:.bss=mig_7series_0_memaddr
+com.xilinx.sdk.linkgen.prefs.ARTY_firmware\:.data=mig_7series_0_memaddr
+com.xilinx.sdk.linkgen.prefs.ARTY_firmware\:.rodata=mig_7series_0_memaddr
+com.xilinx.sdk.linkgen.prefs.ARTY_firmware\:.sbss=mig_7series_0_memaddr
+com.xilinx.sdk.linkgen.prefs.ARTY_firmware\:.sbss2=mig_7series_0_memaddr
+com.xilinx.sdk.linkgen.prefs.ARTY_firmware\:.sdata=mig_7series_0_memaddr
+com.xilinx.sdk.linkgen.prefs.ARTY_firmware\:.sdata2=mig_7series_0_memaddr
+com.xilinx.sdk.linkgen.prefs.ARTY_firmware\:.text=mig_7series_0_memaddr
+com.xilinx.sdk.linkgen.prefs.ARTY_firmware\:heap=mig_7series_0_memaddr
+com.xilinx.sdk.linkgen.prefs.ARTY_firmware\:heap-size=1024
+com.xilinx.sdk.linkgen.prefs.ARTY_firmware\:stack=mig_7series_0_memaddr
+com.xilinx.sdk.linkgen.prefs.ARTY_firmware\:stack-size=1024
+eclipse.preferences.version=1

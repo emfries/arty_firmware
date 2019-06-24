@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<section name="Workbench">
+	<item value="ARTY_firmware_wrapper_hw_platform_0" key="programflash.hwplatform"/>
+	<item value="Auto Detect" key="ARTY_firmware_wrapper_hw_platform_0-device"/>
+	<item value="Local" key="ARTY_firmware_wrapper_hw_platform_0-target"/>
+	<item value="/home/daq/Xilinx/ARTY_firmware/ARTY_firmware.sdk/ARTY_firmware_wrapper_hw_platform_0/download.bit" key="ARTY_firmware_wrapper_hw_platform_0-imgFile"/>
+	<item value="true" key="ARTY_firmware_wrapper_hw_platform_0-blankCheck"/>
+	<item value="" key="ARTY_firmware_wrapper_hw_platform_0-fsblFile"/>
+	<item value="mt25ql128-spi-x1_x2_x4" key="ARTY_firmware_wrapper_hw_platform_0-flashType"/>
+	<item value="0x00" key="ARTY_firmware_wrapper_hw_platform_0-offSet"/>
+	<item value="true" key="ARTY_firmware_wrapper_hw_platform_0-verifyFlash"/>
+</section>

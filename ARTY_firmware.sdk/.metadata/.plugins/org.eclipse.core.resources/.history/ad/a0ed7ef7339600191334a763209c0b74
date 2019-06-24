@@ -1,0 +1,468 @@
+/******************************************************************************
+*
+* Copyright (C) 2009 - 2014 Xilinx, Inc.  All rights reserved.
+*
+* Permission is hereby granted, free of charge, to any person obtaining a copy
+* of this software and associated documentation files (the "Software"), to deal
+* in the Software without restriction, including without limitation the rights
+* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+* copies of the Software, and to permit persons to whom the Software is
+* furnished to do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included in
+* all copies or substantial portions of the Software.
+*
+* Use of the Software is limited solely to applications:
+* (a) running on a Xilinx device, or
+* (b) that interact with a Xilinx device through a bus or interconnect.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+* XILINX  BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
+* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* SOFTWARE.
+*
+* Except as contained in this notice, the name of the Xilinx shall not be used
+* in advertising or otherwise to promote the sale, use or other dealings in
+* this Software without prior written authorization from Xilinx.
+*
+******************************************************************************/
+
+/*
+ * SERIAL CONNECTION PARAMETERS
+ * ----------------------------
+ * 9600 baud rate
+ * no parity
+ * 1 stop bit
+ * 8 bit length
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include "xparameters.h"
+#include "platform.h"
+#include "xil_printf.h"
+#include "xgpio.h"
+#include "xtmrctr.h"
+#include "xil_types.h"
+#include "sleep.h"
+#include "xuartlite.h"
+
+#define TIMER_ID XPAR_AXI_TIMER_0_DEVICE_ID
+#define GPIO_ID XPAR_AXI_GPIO_0_DEVICE_ID
+#define UART_ID XPAR_AXI_UARTLITE_0_DEVICE_ID
+const unsigned int TTL_CHANNEL = 2; // channels depend on what was added first to GPIO in block design
+const unsigned int LED_CHANNEL = 1;
+
+/*
+ * 16 IO pins, IO26 through IO41
+ * IO39 through IO41 currently (4/29/18) used for input signals
+ * Only 13 pins available for pattern
+ */
+const unsigned int HmGX_PIN       = 1<<13;
+const unsigned int TTL_IO         = 1<<13 | 1<<14 | 1<<15; // OR of all input pins, have to do this by hand
+const unsigned int PATTERN_LENGTH = 13; // have to do this by hand
+const unsigned int ABORT_PATTERN  = 1<<0 | 1<<1;
+
+unsigned int pulse_channels;
+unsigned int pulse_low;
+double       pulse_time;
+
+double       block_time;
+
+const unsigned int MAX_TICKS = -1; // underflows to UINT32_MAX
+const unsigned int TIMER_FREQ = XPAR_AXI_TIMER_0_CLOCK_FREQ_HZ;
+
+const char RESET_STR[10] = "";
+
+const char ABORT_STR[10] = "abort";
+const int ABORT_LEN = strlen(ABORT_STR);
+int abort_check = 0;
+
+XTmrCtr timer;
+XGpio gpio;
+XUartLite uart;
+
+int self_test();
+void timer_stop();
+void timer_start();
+int read_run(unsigned int *ticks0, unsigned int *ticks1, unsigned int *positions, int n, unsigned int *check0, unsigned int *check1);
+int check_abort(int abort_now);
+int run_pattern(unsigned int *ticks0, unsigned int *ticks1, unsigned int *positions, int n, unsigned int check0, unsigned int check1);
+int trigger_on_HmGX();
+void reset_fpga();
+
+int main() {
+	// sets up FPGA
+	init_platform();
+	XTmrCtr_Initialize(&timer, TIMER_ID);
+	XGpio_Initialize(&gpio, GPIO_ID);
+	XUartLite_Initialize(&uart, UART_ID);
+
+	// tests that FPGA is good to go
+	if (self_test() == -1) return -1;
+
+	// waits for any input, then starts
+	XGpio_DiscreteWrite(&gpio, LED_CHANNEL, 0b0001); // FPGA ready for handshake
+	char handshake[10] = "";
+	scanf("%s", handshake);
+	reset_fpga();
+
+	while (1) { // each loop through is one (attempted) run
+		XGpio_DiscreteWrite(&gpio, LED_CHANNEL, 0b0011); // FPGA at top of run, put here to try to add in a little delay
+		while (1) { // FPGA and Slow Control must agree that it's time to start a run
+			char prepare_for_run[30] = "";
+			scanf("%s", prepare_for_run);
+			if (strcmp(prepare_for_run, RESET_STR)==0) {
+				reset_fpga();
+				continue;
+			} else if (strcmp(prepare_for_run,"prepare_for_run") == 0) {
+				xil_printf("FPGA ready to receive the run\n\r");
+				break;
+			} else {
+				xil_printf("ERROR! Must enter \"prepare_for_run\" to continue.\n\r");
+				continue;
+			}
+		}
+
+		XGpio_DiscreteWrite(&gpio, LED_CHANNEL, 0b0111); // FPGA reading run
+		char number[10] = "";
+		scanf("%s",number);
+		if (strcmp(number,RESET_STR)==0) {
+			reset_fpga();
+			continue;
+		}
+		int n = strtod(number,NULL);
+		xil_printf("%d\n\r",n);
+
+		unsigned int ticks0[n], ticks1[n], positions[n];
+		unsigned int check0, check1;
+		int do_a_reset = read_run(ticks0, ticks1, positions, sizeof(ticks0)/sizeof(ticks0[0]), &check0, &check1);
+		if (do_a_reset) {
+			reset_fpga();
+			continue;
+		}
+
+		/*
+		 * Slow Control will send:
+		 * 		if FPGA echoed back the pattern correctly:
+		 * 			if FPGA should start immediately:      "start_now"
+		 * 			if FPGA should trigger off of H-GX:    "start_HmGX"
+		 *		else:                                      "dont_start" (n.b., apostrophe intentionally missing)
+		 */
+		char check[20] = "";
+		scanf("%s",check);
+		if (strcmp(check,RESET_STR)==0) {
+			reset_fpga();
+			continue;
+		} else {
+			if (self_test() == -1) {
+				xil_printf("ERROR! Self-tests of timer and/or GPIO failed\n\r");
+				continue;
+			}
+		}
+
+		if (strcmp(check,"start_now")==0) {
+			timer_start();
+
+		}
+		else if (strcmp(check,"start_HmGX")==0) { // delay while looking for H-GX trigger
+			char pre_state_str[10] = "";
+			scanf("%s", pre_state_str);
+			if (strcmp(pre_state_str,RESET_STR)==0) {
+				reset_fpga();
+				continue;
+			}
+			unsigned int pre_state = (unsigned int)strtod(pre_state_str,NULL);
+			XGpio_DiscreteWrite(&gpio, TTL_CHANNEL, pre_state);
+			int timed_out = trigger_on_HmGX();
+			if (timed_out) continue;
+		} else continue; // abort the run
+
+		XGpio_DiscreteWrite(&gpio, LED_CHANNEL, 0b1111); // FPGA is doing the run
+		int run_status = run_pattern(ticks0, ticks1, positions, sizeof(ticks0)/sizeof(ticks0[0]), check0, check1);
+		if (run_status == 0) xil_printf("Run_ran_correctly\n\r");
+		else if (run_status == 1) xil_printf("Run_aborted\n\r");
+		else xil_printf("Run_ran_incorrectly\n\r");
+	}
+
+    cleanup_platform();
+    return 0;
+}
+
+/*
+ * Self-tests timer, GPIO, and UART
+ *
+ * If timer, GPIO, and UART self-tests work, returns 0
+ * Else, returns -1
+ */
+int self_test() {
+
+	int status;
+
+	status = XTmrCtr_SelfTest(&timer, 0);
+	if (status == XST_SUCCESS) XTmrCtr_SetOptions(&timer, 0, XTC_CASCADE_MODE_OPTION);
+	else return -1;
+
+	status = XGpio_SelfTest(&gpio);
+	if (status == XST_SUCCESS) {
+		XGpio_SetDataDirection(&gpio, LED_CHANNEL, 0b0000);
+		XGpio_SetDataDirection(&gpio, TTL_CHANNEL, TTL_IO);
+	} else return -1;
+
+	status = XUartLite_SelfTest(&uart);
+	if (status != XST_SUCCESS) return -1;
+
+	timer_start();
+	timer_stop();
+
+	return 0;
+}
+
+void timer_stop() {
+	XTmrCtr_Stop(&timer,0);
+	XTmrCtr_Stop(&timer,1);
+	XTmrCtr_Reset(&timer,0);
+	XTmrCtr_Reset(&timer,1);
+}
+
+void timer_start() {
+	XTmrCtr_Start(&timer,0);
+	XTmrCtr_Start(&timer,1);
+}
+
+/*
+ * Slow Control reads a run file, converts it to a format that is good for FPGA
+ * FPGA reads the sanitized input from Slow Control
+ *
+ * returns 0 if a good read
+ * returns 1 if reset
+ */
+int read_run(unsigned int *ticks0, unsigned int *ticks1, unsigned int *positions, int n, unsigned int *check0, unsigned int *check1) {
+    for (int i=0;i<n;i++) {
+    	char t0[10] = "", t1[10] = "", p[10] = "";
+
+    	scanf("%s",t0);
+    	if (strcmp(t0,RESET_STR)==0) return 1;
+		ticks0[i] = (unsigned int)strtoul(t0,NULL,10);
+		xil_printf("%u\n\r",ticks0[i]);
+
+		scanf("%s",t1);
+		if (strcmp(t1,RESET_STR)==0) return 1;
+		ticks1[i] = (unsigned int)strtoul(t1,NULL,10);
+		xil_printf("%u\n\r",ticks1[i]);
+
+		scanf("%s",p);
+		if (strcmp(p,RESET_STR)==0) return 1;
+		positions[i] = (unsigned int)strtoul(p,NULL,10);
+		xil_printf("%u\n\r",positions[i]);
+	}
+
+    int quit=0;
+    double check_ticks = 0.0;
+    for (int i=0;i<n;i++) {
+    	double ticks = ticks0[i] + ((double)MAX_TICKS+1)*ticks1[i];
+    	if (ticks-check_ticks > block_time*TIMER_FREQ) quit=1;
+    	else check_ticks = ticks+1.0;
+    	*check1 = (unsigned int)(check_ticks/((double)MAX_TICKS+1));
+    	*check0 = (unsigned int)(check_ticks - ((double)(*check1))*MAX_TICKS);
+    	if (quit) break;
+    }
+
+    return 0;
+}
+
+/*
+ * if abort_now==0: check for abort
+ * else:            abort now regardless of signal
+ * returns 0 if there is no abort signal
+ * returns 1 if there is an abort signal
+ */
+int check_abort(int abort_now) {
+	if (abort_now) return 1;
+
+	const int BUFFER_SIZE = 10;
+	u8 buffer[100];
+	for (int i=0;i<BUFFER_SIZE;i++) buffer[i] = (u8)0;
+	XUartLite_Recv(&uart,buffer,BUFFER_SIZE);
+
+	for (int i=0;i<BUFFER_SIZE;i++) {
+		if (buffer[i] == (u8)ABORT_STR[abort_check]) abort_check++;
+		else abort_check=0;
+
+		if (abort_check==ABORT_LEN) return 1;
+	}
+
+	return 0;
+}
+
+/*
+ * Runs a preset pattern
+ * Makes TTL pins go high/low, listens for abort signal
+ *
+ * If reaches end of run successfully, returns 0
+ * If aborted, returns 1
+ *
+ * Assumes that timer is already running and set to first value
+ */
+int run_pattern(unsigned int *ticks0, unsigned int *ticks1, unsigned int *positions, int n, unsigned int check0, unsigned int check1) {
+	int i=0;
+	int pre_position = 0;
+	int pre_check = 0;
+	int aborted = 0;
+
+	while(1) {
+		unsigned int t0 = XTmrCtr_GetValue(&timer, 0);
+		unsigned int t1 = XTmrCtr_GetValue(&timer, 1);
+	    if (t1>ticks1[i] || (t1==ticks1[i] && t0>=ticks0[i])) {
+	    	if (pre_position) {
+				XGpio_DiscreteWrite(&gpio, TTL_CHANNEL, positions[i]);
+				pre_position = 0;
+				if ((positions[i]&pulse_channels)^pulse_low) { // at least one of the pulse channels is sending a pulse
+					double stop_ticks = t0 + t1*((double)MAX_TICKS+1) + pulse_time*TIMER_FREQ;
+					unsigned int t1_stop = (unsigned int)(stop_ticks/((double)MAX_TICKS+1));
+					unsigned int t0_stop = (unsigned int)(stop_ticks - ((double)t1_stop)*MAX_TICKS);
+					while(1) {
+						t0 = XTmrCtr_GetValue(&timer, 0);
+						t1 = XTmrCtr_GetValue(&timer, 1);
+						if (t1>t1_stop || (t1==t1_stop && t0>=t0_stop)) {
+							unsigned int p = (positions[i] & ~pulse_channels) | pulse_low;
+							XGpio_DiscreteWrite(&gpio, TTL_CHANNEL, p);
+							break;
+						}
+					}
+
+				}
+				//xil_printf("%u %u %u\n\r", t0, t1, positions[i]); // takes ~10,000 us
+				i++;
+				if (i>=n) break;
+	    	} else pre_position = 1;
+	    }
+
+	    if (!pre_position && (t1>check1 || (t1==check1 && t0>=check0))) {
+	    	if (pre_check) {
+	    		pre_check = 0;
+
+				if (check_abort(0)) {
+					aborted = 1;
+					break;
+				}
+
+				// update when to do the next check
+				double check_ticks = check0 + check1*((double)MAX_TICKS+1) + TIMER_FREQ;
+				for (int j=i;j<n;j++) {
+					double next_ticks = ticks0[j] + ticks1[j]*((double)MAX_TICKS+1);
+					if (next_ticks<check_ticks) continue;
+					else if (next_ticks-check_ticks < block_time*TIMER_FREQ) check_ticks = next_ticks+1;
+					else break;
+				}
+				check1 = (unsigned int)(check_ticks/((double)MAX_TICKS+1));
+				check0 = (unsigned int)(check_ticks - ((double)check1)*MAX_TICKS);
+
+				// print back current time and state
+				xil_printf("%u %u %u end\n\r",t0,t1,positions[i-1]);
+	    	} else pre_check = 1;
+	    }
+	}
+
+	timer_stop();
+	return aborted;
+}
+
+/*
+ * returns 0 on a good HmGX trigger
+ * returns 1 on an time out
+ */
+int trigger_on_HmGX(unsigned int first_position) {
+	// prev is previous state, prev2 is one state before previous state
+	unsigned int prev_hmgx_state=0, prev2_hmgx_state=1, beam_pre_enabled=0, i=0;
+
+	while (1) {
+		unsigned int read = XGpio_DiscreteRead(&gpio, TTL_CHANNEL);
+		unsigned int hmgx_state = read & HmGX_PIN;
+
+		// positive edge is defined as the current state being high, the previous state being high, but the twice previous state being low
+		// negative edge is defined as the current state being low, the previous state being low, but the twice previous state being high
+		unsigned int pos_edge_hmgx = hmgx_state && prev_hmgx_state && !prev2_hmgx_state;
+		unsigned int neg_edge_hmgx = !hmgx_state && !prev_hmgx_state && prev2_hmgx_state;
+		prev2_hmgx_state = prev_hmgx_state;
+		prev_hmgx_state = hmgx_state;
+
+		if(i<2){ // force the loop to run at least 3 times to clear out initial values
+			i++;
+			continue;
+		}
+
+		if (pos_edge_hmgx && beam_pre_enabled==0) { // looking for first pos edge H-GX pulse
+			xil_printf("First_pos_edge_HmGX\n\r");
+			beam_pre_enabled = 1;
+		} else if (neg_edge_hmgx && beam_pre_enabled==1) { // forced to wait until the end of the first pulse
+			beam_pre_enabled = 2;
+			// wait one second
+			timer_start();
+			while (1) {
+				unsigned int t0 = XTmrCtr_GetValue(&timer, 0);
+				if (t0 > TIMER_FREQ) break;
+			}
+			timer_stop();
+		} else if (pos_edge_hmgx && beam_pre_enabled==2) { // looking for second pos edge H-GX pulse
+			// start immediately
+			timer_start();
+			XGpio_DiscreteWrite(&gpio, TTL_CHANNEL, first_position);
+			xil_printf("Second_pos_edge_HmGX\n\r");
+			return 0;
+		}
+	}
+	return 1;
+}
+
+void reset_fpga() {
+	XGpio_DiscreteWrite(&gpio, TTL_CHANNEL, ABORT_PATTERN);
+
+	timer_stop();
+
+	xil_printf("FPGA has reset!\n\r");
+	xil_printf("%u %u %u %u\n\r", MAX_TICKS, TIMER_FREQ, PATTERN_LENGTH, ABORT_PATTERN);
+
+	char pulse_channels_str[10] = "", pulse_low_str[10] = "", pulse_time_str[10] = "", block_time_str[10]="";
+
+	scanf("%s",pulse_channels_str);
+	if (strcmp(pulse_channels_str,RESET_STR)==0) {
+		reset_fpga();
+		return;
+	}
+	pulse_channels = (unsigned int)strtod(pulse_channels_str,NULL);
+	xil_printf("%u\n\r",pulse_channels);
+
+	scanf("%s",pulse_low_str);
+	if (strcmp(pulse_low_str,RESET_STR)==0) {
+		reset_fpga();
+		return;
+	}
+	pulse_low = (unsigned int)strtod(pulse_low_str,NULL);
+	xil_printf("%u\n\r",pulse_low);
+
+	scanf("%s",pulse_time_str);
+	if (strcmp(pulse_time_str,RESET_STR)==0) {
+		reset_fpga();
+		return;
+	}
+	pulse_time = (double)strtod(pulse_time_str,NULL);
+	xil_printf("%u\n\r",(unsigned int)pulse_time);
+	pulse_time/=1000.0; // convert ms to s
+
+	scanf("%s",block_time_str);
+	if (strcmp(block_time_str,RESET_STR)==0) {
+		reset_fpga();
+		return;
+	}
+	block_time = (double)strtod(block_time_str,NULL);
+	xil_printf("%u\n\r",(unsigned int)block_time);
+	block_time/=1000.0; // convert ms to s
+
+	XGpio_DiscreteWrite(&gpio, LED_CHANNEL, 0b0001);
+
+	return;
+}
